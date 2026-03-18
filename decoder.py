@@ -1068,7 +1068,7 @@ def show_about():
         "  Hex, Binary, Octal, ASCII Decimal\n"
         "  URL, HTML entities\n"
         "  ROT13, ROT47, Caesar, Morse\n\n"
-        "Author: Kookiieeyy"
+        "Author: Bhavya Sehgal"
     )
     messagebox.showinfo("About", about_text)
 
