@@ -3,7 +3,7 @@
 #   PRO STEGHIDE GUI — UNIVERSAL EDITION
 #   Supports: Images, Audio, Video, PDF, Any Binary
 #   Tools: steghide, ffmpeg, LSB engine (built-in)
-#   Author: Kookieeyy  |  Extended for universal support
+#   Author: Bhavya Sehgal  |  Extended for universal support
 # ===========================================================
 
 import tkinter as tk
