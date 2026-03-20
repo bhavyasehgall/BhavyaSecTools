@@ -543,11 +543,153 @@ def add_to_history(input_text, result, enc_type):
         history = history[:HISTORY_LIMIT]
     save_history()
 
+
+# ===========================================================
+# ENCODERS
+# ===========================================================
+
+def encode_base64(s):
+    return base64.b64encode(s.encode('utf-8')).decode()
+
+def encode_base64_url(s):
+    return base64.urlsafe_b64encode(s.encode('utf-8')).decode().rstrip('=')
+
+def encode_base32(s):
+    return base64.b32encode(s.encode('utf-8')).decode()
+
+def encode_base58(s):
+    data = s.encode('utf-8')
+    num = int.from_bytes(data, 'big')
+    if num == 0:
+        return BASE58_CHARS[0]
+    result = ''
+    while num:
+        num, rem = divmod(num, 58)
+        result = BASE58_CHARS[rem] + result
+    # Leading zero bytes
+    for byte in data:
+        if byte == 0:
+            result = BASE58_CHARS[0] + result
+        else:
+            break
+    return result
+
+def encode_base85(s):
+    return base64.a85encode(s.encode('utf-8'), adobe=False).decode()
+
+def encode_hex(s):
+    return s.encode('utf-8').hex()
+
+def encode_hex_spaced(s):
+    h = s.encode('utf-8').hex()
+    return ' '.join(h[i:i+2] for i in range(0, len(h), 2))
+
+def encode_binary(s):
+    return ' '.join(format(ord(c), '08b') for c in s)
+
+def encode_octal(s):
+    return ' '.join(format(ord(c), 'o') for c in s)
+
+def encode_ascii_decimal(s):
+    return ' '.join(str(ord(c)) for c in s)
+
+def encode_url(s):
+    return urllib.parse.quote(s)
+
+def encode_url_full(s):
+    return urllib.parse.quote(s, safe='')
+
+def encode_html_entities(s):
+    return html.escape(s)
+
+def encode_rot13(s):
+    rot = str.maketrans(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+        "NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm"
+    )
+    return s.translate(rot)
+
+def encode_rot47(s):
+    result = ''
+    for c in s:
+        o = ord(c)
+        if 33 <= o <= 126:
+            result += chr(33 + ((o - 33 + 47) % 94))
+        else:
+            result += c
+    return result
+
+TEXT_TO_MORSE = {v: k for k, v in MORSE.items()}
+
+def encode_morse(s):
+    words = s.upper().split()
+    encoded_words = []
+    for word in words:
+        letters = []
+        for ch in word:
+            code = TEXT_TO_MORSE.get(ch)
+            if code is None:
+                return None  # unsupported character
+            letters.append(code)
+        encoded_words.append(' '.join(letters))
+    return ' / '.join(encoded_words)
+
+def encode_caesar(s, shift):
+    result = ''
+    for c in s:
+        if c.isalpha():
+            base = ord('A') if c.isupper() else ord('a')
+            result += chr((ord(c) - base + shift) % 26 + base)
+        else:
+            result += c
+    return result
+
+def encode_md5(s):
+    import hashlib
+    return hashlib.md5(s.encode('utf-8')).hexdigest()
+
+def encode_sha1(s):
+    import hashlib
+    return hashlib.sha1(s.encode('utf-8')).hexdigest()
+
+def encode_sha256(s):
+    import hashlib
+    return hashlib.sha256(s.encode('utf-8')).hexdigest()
+
+def encode_sha512(s):
+    import hashlib
+    return hashlib.sha512(s.encode('utf-8')).hexdigest()
+
+
+ENCODERS = {
+    # Format: display_name -> (function_or_None, has_param, param_label, param_default)
+    "Base64":           (encode_base64,       False, None,    None),
+    "Base64 URL-safe":  (encode_base64_url,   False, None,    None),
+    "Base32":           (encode_base32,       False, None,    None),
+    "Base58":           (encode_base58,       False, None,    None),
+    "Base85":           (encode_base85,       False, None,    None),
+    "Hex (compact)":    (encode_hex,          False, None,    None),
+    "Hex (spaced)":     (encode_hex_spaced,   False, None,    None),
+    "Binary":           (encode_binary,       False, None,    None),
+    "Octal":            (encode_octal,        False, None,    None),
+    "ASCII Decimal":    (encode_ascii_decimal,False, None,    None),
+    "URL encode":       (encode_url,          False, None,    None),
+    "URL encode (full)":(encode_url_full,     False, None,    None),
+    "HTML entities":    (encode_html_entities,False, None,    None),
+    "ROT13":            (encode_rot13,        False, None,    None),
+    "ROT47":            (encode_rot47,        False, None,    None),
+    "Morse":            (encode_morse,        False, None,    None),
+    "Caesar cipher":    (encode_caesar,       True,  "Shift", "3"),
+    "MD5 hash":         (encode_md5,          False, None,    None),
+    "SHA-1 hash":       (encode_sha1,         False, None,    None),
+    "SHA-256 hash":     (encode_sha256,       False, None,    None),
+    "SHA-512 hash":     (encode_sha512,       False, None,    None),
+}
+
+
 # ===========================================================
 # DECODER NAME LIST (for Manual Mode dropdown)
 # ===========================================================
-
-DECODER_NAMES = [n for n, _ in DECODERS]
 
 MANUAL_DECODER_MAP = {
     "Base64":        decode_base64,
@@ -567,30 +709,6 @@ MANUAL_DECODER_MAP = {
     "Morse":         decode_morse,
 }
 
-
-# ===========================================================
-# DECODER NAME LIST (for Manual Mode dropdown)
-# ===========================================================
-
-DECODER_NAMES = [n for n, _ in DECODERS]
-
-MANUAL_DECODER_MAP = {
-    "Base64":        decode_base64,
-    "Base64 URL":    decode_base64_url,
-    "Base32":        decode_base32,
-    "Base58":        decode_base58,
-    "Base85":        decode_base85,
-    "Hex":           decode_hex,
-    "Binary":        decode_binary,
-    "Octal":         decode_octal,
-    "ASCII Decimal": decode_ascii_decimal,
-    "URL":           decode_url,
-    "HTML":          decode_html_entities,
-    "ROT13":         decode_rot13,
-    "ROT47":         decode_rot47,
-    "Caesar":        decode_caesar,
-    "Morse":         decode_morse,
-}
 
 # ===========================================================
 # THEME HELPERS
@@ -604,25 +722,19 @@ def apply_theme(theme_name):
     root.config(bg=theme['bg'])
     menubar.config(bg=theme['bg'], fg=theme['text'])
 
-    for frame in [main_frame, input_frame, result_frame, button_frame, sidebar_frame]:
+    for frame in [sidebar_frame]:
         try:
             frame.config(style=f"{theme_name}.TFrame")
         except:
             pass
 
-    text_input.config(
-        bg=theme['text_bg'], fg=theme['text'],
-        insertbackground=theme['text'], selectbackground=theme['accent']
-    )
-
-    decode_btn.config(style=f"{theme_name}.TButton")
-    clear_btn.config(style=f"{theme_name}.Clear.TButton")
-    copy_btn.config(style=f"{theme_name}.TButton")
-
     status_bar.config(bg=theme['accent'], fg='white')
 
     for lbl in sidebar_labels:
-        lbl.config(bg=theme['bg'], fg=theme['label_fg'])
+        try:
+            lbl.config(bg=theme['bg'], fg=theme['label_fg'])
+        except:
+            pass
 
     for name, btn in theme_buttons.items():
         if name == theme_name:
@@ -630,83 +742,113 @@ def apply_theme(theme_name):
         else:
             btn.config(style=f"{theme_name}.TButton")
 
-    text_input.tag_configure("highlight", background=theme['highlight'])
-    _refresh_result_display()
-    update_status(f"Theme changed to {theme_name}", "info")
+    _refresh_decoder_display()
+    _refresh_encoder_display()
+    update_status(f"Theme: {theme_name}", "info")
 
 
 # ===========================================================
-# RESULT DISPLAY — shared render engine
+# SHARED STATE
 # ===========================================================
 
-_last_layers = []
+_decoder_layers = []
+_encoder_result = ""
 
 
-def _refresh_result_display():
-    """Re-render the result display using _last_layers with current theme colors."""
+# ===========================================================
+# DECODER DISPLAY ENGINE
+# ===========================================================
+
+def _refresh_decoder_display():
     theme = THEMES[current_theme]
-    result_display.config(state='normal')
-    result_display.delete("1.0", tk.END)
 
-    result_display.tag_configure(
+    dec_result_display.config(state='normal')
+    dec_result_display.delete("1.0", tk.END)
+    dec_result_display.tag_configure(
         "header", font=('Segoe UI', 10, 'bold'), foreground=theme['accent'])
-    result_display.tag_configure(
+    dec_result_display.tag_configure(
         "output", font=('Consolas', 10), foreground=theme['text'])
-    result_display.tag_configure(
+    dec_result_display.tag_configure(
         "error", font=('Segoe UI', 10), foreground='#cc0000')
 
-    for widget in layer_buttons_frame.winfo_children():
-        widget.destroy()
+    dec_input.config(
+        bg=theme['text_bg'], fg=theme['text'],
+        insertbackground=theme['text'], selectbackground=theme['accent'])
+    dec_result_display.config(
+        bg=theme['text_bg'], fg=theme['text'])
 
-    if not _last_layers:
-        result_display.config(state='disabled')
+    for w in dec_layer_btn_frame.winfo_children():
+        w.destroy()
+
+    if not _decoder_layers:
+        dec_result_display.config(state='disabled')
         return
 
-    for i, (enc, res) in enumerate(_last_layers, 1):
-        header_text = f"Layer {i} ({enc}):\n"
-        result_display.insert(tk.END, header_text, "header")
-        result_display.insert(tk.END, res + "\n\n", "output")
+    for i, (enc, res) in enumerate(_decoder_layers, 1):
+        dec_result_display.insert(tk.END, f"Layer {i} ({enc}):\n", "header")
+        dec_result_display.insert(tk.END, res + "\n\n", "output")
 
-        btn_text = f"Copy Layer {i}"
         btn = tk.Button(
-            layer_buttons_frame,
-            text=btn_text,
+            dec_layer_btn_frame,
+            text=f"Copy Layer {i}",
             font=('Segoe UI', 8),
-            bg=theme['button_bg'],
-            fg='white',
+            bg=theme['button_bg'], fg='white',
             activebackground=theme.get('button_hover', theme['button_bg']),
             activeforeground='white',
-            relief='flat',
-            padx=6, pady=2,
-            cursor='hand2',
+            relief='flat', padx=6, pady=2, cursor='hand2',
             command=lambda r=res: _copy_text(r)
         )
         btn.pack(side=tk.LEFT, padx=3, pady=2)
 
-    result_display.config(state='disabled')
+    dec_result_display.config(state='disabled')
+
+
+# ===========================================================
+# ENCODER DISPLAY ENGINE
+# ===========================================================
+
+def _refresh_encoder_display():
+    theme = THEMES[current_theme]
+
+    enc_input.config(
+        bg=theme['text_bg'], fg=theme['text'],
+        insertbackground=theme['text'], selectbackground=theme['accent'])
+    enc_result_display.config(
+        bg=theme['text_bg'], fg=theme['text'],
+        state='normal')
+
+    enc_result_display.tag_configure(
+        "label", font=('Segoe UI', 9, 'bold'), foreground=theme['accent'])
+    enc_result_display.tag_configure(
+        "value", font=('Consolas', 10), foreground=theme['text'])
+    enc_result_display.tag_configure(
+        "error", font=('Segoe UI', 9, 'italic'), foreground='#999999')
+    enc_result_display.tag_configure(
+        "separator", font=('Segoe UI', 6), foreground=theme['bg'])
+
+    enc_result_display.config(state='disabled')
 
 
 def _copy_text(text):
     root.clipboard_clear()
     root.clipboard_append(text)
-    preview = text[:40] + ('...' if len(text) > 40 else '')
+    preview = text[:50] + ('...' if len(text) > 50 else '')
     update_status(f"Copied: {preview}", "success")
 
 
 # ===========================================================
-# GUI ACTIONS — AUTO MODE
+# DECODER ACTIONS
 # ===========================================================
 
-def decode_input(event=None):
-    global _last_layers
-    # Don't fire when Enter is pressed inside a Combobox
-    if event and hasattr(event, 'widget'):
+def run_auto_decode(event=None):
+    global _decoder_layers
+    if event:
         wclass = event.widget.winfo_class()
         if wclass in ('TCombobox', 'Entry'):
             return
 
-    user_text = text_input.get("1.0", tk.END).strip()
-    if not user_text:
+    text = dec_input.get("1.0", tk.END).strip()
+    if not text:
         update_status("No input provided.", "error")
         return
 
@@ -714,93 +856,76 @@ def decode_input(event=None):
     root.update()
 
     try:
-        layers = auto_decode_multi_layer(user_text)
-        _last_layers = layers
-        _refresh_result_display()
+        layers = auto_decode_multi_layer(text)
+        _decoder_layers = layers
+        _refresh_decoder_display()
 
         if layers:
-            result = layers[-1][1]
             enc_type = " \u2192 ".join(e for e, _ in layers)
             update_status(f"Decoded {len(layers)} layer(s): {enc_type}", "success")
-            add_to_history(user_text, result, enc_type)
+            add_to_history(text, layers[-1][1], enc_type)
         else:
-            result_display.config(state='normal')
-            result_display.insert(tk.END, "[!] Unable to decode automatically.\n\n", "error")
-            result_display.insert(
+            dec_result_display.config(state='normal')
+            dec_result_display.insert(tk.END, "[!] Unable to decode automatically.\n\n", "error")
+            dec_result_display.insert(
                 tk.END,
                 "Tried: " + ", ".join(n for n, _ in DECODERS) + "\n",
                 "output"
             )
-            result_display.config(state='disabled')
+            dec_result_display.config(state='disabled')
             update_status("Could not decode input.", "error")
-
     except Exception as e:
         update_status(f"Error: {str(e)}", "error")
-        messagebox.showerror("Error", f"An error occurred: {str(e)}")
+        messagebox.showerror("Error", str(e))
 
 
-# ===========================================================
-# GUI ACTIONS — MANUAL MODE
-# ===========================================================
-
-def manual_decode():
-    global _last_layers
-    user_text = text_input.get("1.0", tk.END).strip()
-    if not user_text:
+def run_manual_decode():
+    global _decoder_layers
+    text = dec_input.get("1.0", tk.END).strip()
+    if not text:
         update_status("No input provided.", "error")
         return
 
-    chosen = manual_decoder_var.get()
+    chosen = dec_manual_var.get()
     fn = MANUAL_DECODER_MAP.get(chosen)
     if not fn:
         update_status(f"Unknown decoder: {chosen}", "error")
         return
 
     try:
-        result = fn(user_text)
+        result = fn(text)
         if result is None:
-            _last_layers = []
-            result_display.config(state='normal')
-            result_display.delete("1.0", tk.END)
-            result_display.tag_configure("error", font=('Segoe UI', 10), foreground='#cc0000')
-            result_display.insert(
-                tk.END,
-                f"[!] {chosen} decoder could not decode this input.\n", "error"
-            )
-            result_display.config(state='disabled')
-            update_status(f"{chosen}: failed to decode.", "error")
+            _decoder_layers = []
+            dec_result_display.config(state='normal')
+            dec_result_display.delete("1.0", tk.END)
+            dec_result_display.tag_configure("error", font=('Segoe UI', 10), foreground='#cc0000')
+            dec_result_display.insert(
+                tk.END, f"[!] {chosen} could not decode this input.\n", "error")
+            dec_result_display.config(state='disabled')
+            update_status(f"{chosen}: failed.", "error")
         else:
-            _last_layers = [(chosen, result)]
-            _refresh_result_display()
-            update_status(f"Manual decode via {chosen} succeeded.", "success")
-            add_to_history(user_text, result, chosen)
+            _decoder_layers = [(chosen, result)]
+            _refresh_decoder_display()
+            update_status(f"Manual: {chosen} \u2192 success", "success")
+            add_to_history(text, result, chosen)
     except Exception as e:
         update_status(f"Error: {str(e)}", "error")
-        messagebox.showerror("Error", str(e))
 
 
-# ===========================================================
-# GUI ACTIONS — PIPELINE MODE
-# ===========================================================
-
-def run_pipeline():
-    global _last_layers
-    user_text = text_input.get("1.0", tk.END).strip()
-    if not user_text:
+def run_pipeline_decode():
+    global _decoder_layers
+    text = dec_input.get("1.0", tk.END).strip()
+    if not text:
         update_status("No input provided.", "error")
         return
 
-    steps = []
-    for var in pipeline_step_vars:
-        v = var.get().strip()
-        if v and v != "\u2014 select \u2014":
-            steps.append(v)
-
+    steps = [v.get() for v in dec_pipeline_vars
+             if v.get() and v.get() != "\u2014 select \u2014"]
     if not steps:
-        update_status("Add at least one step to the pipeline.", "error")
+        update_status("Add at least one pipeline step.", "error")
         return
 
-    current = user_text
+    current = text
     layers = []
     for step in steps:
         fn = MANUAL_DECODER_MAP.get(step)
@@ -813,97 +938,384 @@ def run_pipeline():
             result = None
 
         if result is None:
-            _last_layers = layers
-            _refresh_result_display()
-            result_display.config(state='normal')
-            result_display.tag_configure("error", font=('Segoe UI', 10), foreground='#cc0000')
-            result_display.insert(
-                tk.END,
-                f"\n[!] Pipeline stopped: {step} could not decode at this stage.\n",
-                "error"
-            )
-            result_display.config(state='disabled')
-            update_status(f"Pipeline failed at step: {step}", "error")
+            _decoder_layers = layers
+            _refresh_decoder_display()
+            dec_result_display.config(state='normal')
+            dec_result_display.tag_configure("error", font=('Segoe UI', 10), foreground='#cc0000')
+            dec_result_display.insert(
+                tk.END, f"\n[!] Pipeline stopped: {step} failed at this stage.\n", "error")
+            dec_result_display.config(state='disabled')
+            update_status(f"Pipeline failed at: {step}", "error")
             return
         layers.append((step, result))
         current = result
 
-    _last_layers = layers
-    _refresh_result_display()
+    _decoder_layers = layers
+    _refresh_decoder_display()
     enc_type = " \u2192 ".join(steps)
     update_status(f"Pipeline complete: {enc_type}", "success")
     if layers:
-        add_to_history(user_text, layers[-1][1], enc_type)
+        add_to_history(text, layers[-1][1], enc_type)
 
 
-def add_pipeline_step():
-    if len(pipeline_step_vars) >= 8:
+def add_dec_pipeline_step():
+    if len(dec_pipeline_vars) >= 8:
         update_status("Maximum 8 pipeline steps.", "error")
         return
-    _build_pipeline_step(len(pipeline_step_vars))
-    pipeline_canvas.update_idletasks()
-    pipeline_canvas.configure(scrollregion=pipeline_canvas.bbox("all"))
+    _build_dec_pipeline_step(len(dec_pipeline_vars))
+    dec_pipe_canvas.update_idletasks()
+    dec_pipe_canvas.configure(scrollregion=dec_pipe_canvas.bbox("all"))
 
 
-def remove_pipeline_step():
-    if not pipeline_step_vars:
+def remove_dec_pipeline_step():
+    if not dec_pipeline_vars:
         return
-    pipeline_step_vars.pop()
-    step_frames = [w for w in pipeline_steps_inner.winfo_children()
-                   if isinstance(w, tk.Frame)]
-    if step_frames:
-        step_frames[-1].destroy()
-    pipeline_canvas.update_idletasks()
-    pipeline_canvas.configure(scrollregion=pipeline_canvas.bbox("all"))
+    dec_pipeline_vars.pop()
+    frames = [w for w in dec_pipe_inner.winfo_children() if isinstance(w, tk.Frame)]
+    if frames:
+        frames[-1].destroy()
+    dec_pipe_canvas.update_idletasks()
+    dec_pipe_canvas.configure(scrollregion=dec_pipe_canvas.bbox("all"))
 
 
-def _build_pipeline_step(idx):
+def _build_dec_pipeline_step(idx):
     theme = THEMES[current_theme]
-    frame = tk.Frame(pipeline_steps_inner, bg=theme['bg'])
+    frame = tk.Frame(dec_pipe_inner, bg=theme['bg'])
     frame.pack(side=tk.LEFT, padx=2, pady=2)
-
     if idx > 0:
         tk.Label(frame, text="\u2192", font=('Segoe UI', 12, 'bold'),
                  bg=theme['bg'], fg=theme['accent']).pack(side=tk.LEFT, padx=4)
-
     var = tk.StringVar(value="\u2014 select \u2014")
-    pipeline_step_vars.append(var)
-
-    cb = ttk.Combobox(
-        frame, textvariable=var,
-        values=list(MANUAL_DECODER_MAP.keys()),
-        width=13, state='readonly',
-        font=('Segoe UI', 9)
-    )
-    cb.pack(side=tk.LEFT)
+    dec_pipeline_vars.append(var)
+    ttk.Combobox(frame, textvariable=var,
+                 values=list(MANUAL_DECODER_MAP.keys()),
+                 width=13, state='readonly', font=('Segoe UI', 9)).pack(side=tk.LEFT)
 
 
-# ===========================================================
-# OTHER ACTIONS
-# ===========================================================
-
-def clear_text(event=None):
-    global _last_layers
-    _last_layers = []
-    text_input.delete("1.0", tk.END)
-    result_display.config(state='normal')
-    result_display.delete("1.0", tk.END)
-    result_display.config(state='disabled')
-    for w in layer_buttons_frame.winfo_children():
+def clear_decoder(event=None):
+    global _decoder_layers
+    _decoder_layers = []
+    dec_input.delete("1.0", tk.END)
+    dec_result_display.config(state='normal')
+    dec_result_display.delete("1.0", tk.END)
+    dec_result_display.config(state='disabled')
+    for w in dec_layer_btn_frame.winfo_children():
         w.destroy()
-    update_status("Cleared.", "info")
-    text_input.focus_set()
+    update_status("Decoder cleared.", "info")
+    dec_input.focus_set()
 
 
-def copy_to_clipboard(event=None):
-    content = result_display.get("1.0", tk.END).strip()
+def copy_decoder_all(event=None):
+    content = dec_result_display.get("1.0", tk.END).strip()
     if content:
         root.clipboard_clear()
         root.clipboard_append(content)
-        update_status("Copied to clipboard.", "success")
+        update_status("Copied all output.", "success")
     else:
         update_status("Nothing to copy.", "error")
 
+
+# ===========================================================
+# ENCODER ACTIONS
+# ===========================================================
+
+def run_encode():
+    global _encoder_result
+    text = enc_input.get("1.0", tk.END).strip()
+    if not text:
+        update_status("No input provided.", "error")
+        return
+
+    chosen = enc_format_var.get()
+    entry = ENCODERS.get(chosen)
+    if not entry:
+        update_status(f"Unknown encoder: {chosen}", "error")
+        return
+
+    fn, has_param, param_label, param_default = entry
+
+    try:
+        if has_param:
+            raw = enc_param_var.get().strip()
+            try:
+                param = int(raw)
+            except ValueError:
+                update_status(f"Invalid parameter '{raw}' — must be a number.", "error")
+                return
+            result = fn(text, param)
+        else:
+            result = fn(text)
+
+        if result is None:
+            update_status(f"{chosen}: could not encode this input.", "error")
+            enc_result_display.config(state='normal')
+            enc_result_display.delete("1.0", tk.END)
+            enc_result_display.tag_configure("error", font=('Segoe UI', 10), foreground='#cc0000')
+            enc_result_display.insert(tk.END,
+                f"[!] {chosen} could not encode this input.\n"
+                "(Some encoders only support ASCII/printable characters.)\n",
+                "error")
+            enc_result_display.config(state='disabled')
+            return
+
+        _encoder_result = result
+        enc_result_display.config(state='normal')
+        enc_result_display.delete("1.0", tk.END)
+        enc_result_display.tag_configure(
+            "label", font=('Segoe UI', 9, 'bold'),
+            foreground=THEMES[current_theme]['accent'])
+        enc_result_display.tag_configure(
+            "value", font=('Consolas', 11),
+            foreground=THEMES[current_theme]['text'])
+        enc_result_display.insert(tk.END, f"{chosen}:\n", "label")
+        enc_result_display.insert(tk.END, result + "\n", "value")
+        enc_result_display.config(state='disabled')
+        update_status(f"Encoded as {chosen} ({len(result)} chars)", "success")
+
+    except Exception as e:
+        update_status(f"Error: {str(e)}", "error")
+        messagebox.showerror("Encode Error", str(e))
+
+
+def run_encode_all():
+    """Encode input using every encoder and display all results."""
+    text = enc_input.get("1.0", tk.END).strip()
+    if not text:
+        update_status("No input provided.", "error")
+        return
+
+    update_status("Encoding with all methods...", "info")
+    root.update()
+
+    theme = THEMES[current_theme]
+    enc_result_display.config(state='normal')
+    enc_result_display.delete("1.0", tk.END)
+    enc_result_display.tag_configure(
+        "label", font=('Segoe UI', 9, 'bold'), foreground=theme['accent'])
+    enc_result_display.tag_configure(
+        "value", font=('Consolas', 10), foreground=theme['text'])
+    enc_result_display.tag_configure(
+        "error", font=('Segoe UI', 9, 'italic'), foreground='#999999')
+
+    count = 0
+    for name, (fn, has_param, param_label, param_default) in ENCODERS.items():
+        try:
+            if has_param:
+                result = fn(text, int(param_default))
+            else:
+                result = fn(text)
+
+            if result is None:
+                enc_result_display.insert(tk.END, f"{name}:\n", "label")
+                enc_result_display.insert(tk.END, "(not supported for this input)\n\n", "error")
+            else:
+                enc_result_display.insert(tk.END, f"{name}:\n", "label")
+                enc_result_display.insert(tk.END, result + "\n\n", "value")
+                count += 1
+        except Exception:
+            enc_result_display.insert(tk.END, f"{name}:\n", "label")
+            enc_result_display.insert(tk.END, "(error)\n\n", "error")
+
+    enc_result_display.config(state='disabled')
+    update_status(f"Encoded with {count}/{len(ENCODERS)} methods.", "success")
+
+
+def on_encoder_select(event=None):
+    """Show/hide the parameter field based on selected encoder."""
+    chosen = enc_format_var.get()
+    entry = ENCODERS.get(chosen)
+    if not entry:
+        return
+    fn, has_param, param_label, param_default = entry
+    if has_param:
+        enc_param_label.config(text=f"{param_label}:")
+        enc_param_var.set(param_default or "")
+        enc_param_frame.pack(side=tk.LEFT, padx=(8, 0))
+    else:
+        enc_param_frame.pack_forget()
+
+
+def clear_encoder():
+    global _encoder_result
+    _encoder_result = ""
+    enc_input.delete("1.0", tk.END)
+    enc_result_display.config(state='normal')
+    enc_result_display.delete("1.0", tk.END)
+    enc_result_display.config(state='disabled')
+    update_status("Encoder cleared.", "info")
+    enc_input.focus_set()
+
+
+def copy_encoder_result():
+    content = enc_result_display.get("1.0", tk.END).strip()
+    if content:
+        root.clipboard_clear()
+        root.clipboard_append(content)
+        update_status("Copied encoder output.", "success")
+    else:
+        update_status("Nothing to copy.", "error")
+
+
+
+# ===========================================================
+# ENCODER PIPELINE ACTIONS
+# ===========================================================
+
+_enc_pipeline_layers = []
+
+
+def run_pipeline_encode():
+    """Run input through the encoder pipeline: each step encodes the output of the previous."""
+    global _encoder_result, _enc_pipeline_layers
+    text = enc_input.get("1.0", tk.END).strip()
+    if not text:
+        update_status("No input provided.", "error")
+        return
+
+    steps = []
+    for item in enc_pipeline_vars:
+        var, param_var = item
+        name = var.get()
+        if name and name != "— select —":
+            steps.append((name, param_var.get().strip()))
+
+    if not steps:
+        update_status("Add at least one pipeline step.", "error")
+        return
+
+    current = text
+    layers = []
+
+    for step_name, param_raw in steps:
+        entry = ENCODERS.get(step_name)
+        if not entry:
+            update_status(f"Unknown encoder: {step_name}", "error")
+            return
+        fn, has_param, param_label, param_default = entry
+        try:
+            if has_param:
+                try:
+                    param = int(param_raw) if param_raw else int(param_default)
+                except ValueError:
+                    update_status(f"Invalid parameter for {step_name}: '{param_raw}'", "error")
+                    return
+                result = fn(current, param)
+            else:
+                result = fn(current)
+        except Exception:
+            result = None
+
+        if result is None:
+            _enc_pipeline_layers = layers
+            _render_enc_pipeline_results(partial=True, failed_at=step_name)
+            update_status(f"Pipeline stopped: {step_name} failed.", "error")
+            return
+
+        layers.append((step_name, result))
+        current = result
+
+    _enc_pipeline_layers = layers
+    _encoder_result = layers[-1][1] if layers else ""
+    _render_enc_pipeline_results()
+    chain = " → ".join(s for s, _ in steps)
+    update_status(f"Encoded pipeline: {chain} ({len(_encoder_result)} chars)", "success")
+
+
+def _render_enc_pipeline_results(partial=False, failed_at=None):
+    theme = THEMES[current_theme]
+    enc_result_display.config(state='normal')
+    enc_result_display.delete("1.0", tk.END)
+    enc_result_display.tag_configure("header", font=('Segoe UI', 10, 'bold'),
+                                     foreground=theme['accent'])
+    enc_result_display.tag_configure("value", font=('Consolas', 10),
+                                     foreground=theme['text'])
+    enc_result_display.tag_configure("error", font=('Segoe UI', 10), foreground='#cc0000')
+
+    for w in enc_layer_btn_frame.winfo_children():
+        w.destroy()
+
+    for i, (name, val) in enumerate(_enc_pipeline_layers, 1):
+        header_line = "Step " + str(i) + " (" + name + "):\n"
+        enc_result_display.insert(tk.END, header_line, "header")
+        enc_result_display.insert(tk.END, val + "\n\n", "value")
+        btn = tk.Button(
+            enc_layer_btn_frame,
+            text="Copy Step " + str(i),
+            font=('Segoe UI', 8),
+            bg=theme['button_bg'], fg='white',
+            activebackground=theme.get('button_hover', theme['button_bg']),
+            activeforeground='white',
+            relief='flat', padx=6, pady=2, cursor='hand2',
+            command=lambda v=val: _copy_text(v)
+        )
+        btn.pack(side=tk.LEFT, padx=3, pady=2)
+
+    if partial and failed_at:
+        msg = "[!] Pipeline stopped: '" + failed_at + "' could not encode at this stage.\n"
+        enc_result_display.insert(tk.END, msg, "error")
+
+    enc_result_display.config(state='disabled')
+
+
+def add_enc_pipeline_step():
+    if len(enc_pipeline_vars) >= 8:
+        update_status("Maximum 8 pipeline steps.", "error")
+        return
+    _build_enc_pipeline_step(len(enc_pipeline_vars))
+    enc_pipe_canvas.update_idletasks()
+    enc_pipe_canvas.configure(scrollregion=enc_pipe_canvas.bbox("all"))
+
+
+def remove_enc_pipeline_step():
+    if not enc_pipeline_vars:
+        return
+    enc_pipeline_vars.pop()
+    frames = [w for w in enc_pipe_inner.winfo_children() if isinstance(w, tk.Frame)]
+    if frames:
+        frames[-1].destroy()
+    enc_pipe_canvas.update_idletasks()
+    enc_pipe_canvas.configure(scrollregion=enc_pipe_canvas.bbox("all"))
+
+
+def _build_enc_pipeline_step(idx):
+    theme = THEMES[current_theme]
+    frame = tk.Frame(enc_pipe_inner, bg=theme['bg'])
+    frame.pack(side=tk.LEFT, padx=2, pady=2)
+
+    if idx > 0:
+        tk.Label(frame, text="→", font=('Segoe UI', 12, 'bold'),
+                 bg=theme['bg'], fg=theme['accent']).pack(side=tk.LEFT, padx=4)
+
+    var = tk.StringVar(value="— select —")
+    param_var = tk.StringVar(value="3")
+
+    cb = ttk.Combobox(frame, textvariable=var,
+                      values=list(ENCODERS.keys()),
+                      width=14, state='readonly', font=('Segoe UI', 9))
+    cb.pack(side=tk.LEFT)
+
+    param_frame = tk.Frame(frame, bg=theme['bg'])
+    tk.Label(param_frame, text="n=", font=('Segoe UI', 8),
+             bg=theme['bg'], fg=theme['label_fg']).pack(side=tk.LEFT)
+    tk.Entry(param_frame, textvariable=param_var,
+             width=3, font=('Segoe UI', 9)).pack(side=tk.LEFT)
+
+    def on_select(event=None):
+        chosen = var.get()
+        entry = ENCODERS.get(chosen)
+        if entry and entry[1]:
+            param_var.set(entry[3] or "3")
+            param_frame.pack(side=tk.LEFT, padx=(3, 0))
+        else:
+            param_frame.pack_forget()
+
+    cb.bind("<<ComboboxSelected>>", on_select)
+    enc_pipeline_vars.append((var, param_var))
+
+
+# ===========================================================
+# SHARED ACTIONS
+# ===========================================================
 
 def update_status(message, msg_type="info"):
     if 'status_bar' not in globals():
@@ -924,17 +1336,13 @@ def update_status(message, msg_type="info"):
     status_bar.config(bg=bg, fg=fg)
 
 
-# ===========================================================
-# HISTORY WINDOW
-# ===========================================================
-
 def show_history():
-    history_window = tk.Toplevel(root)
-    history_window.title("Decoding History")
-    history_window.geometry("820x600")
-    history_window.config(bg=THEMES[current_theme]['bg'])
+    hw = tk.Toplevel(root)
+    hw.title("Decoding History")
+    hw.geometry("820x600")
+    hw.config(bg=THEMES[current_theme]['bg'])
 
-    container = ttk.Frame(history_window, style=f"{current_theme}.TFrame")
+    container = ttk.Frame(hw, style=f"{current_theme}.TFrame")
     container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
     tk.Label(container, text="Decoding History",
@@ -942,135 +1350,107 @@ def show_history():
              bg=THEMES[current_theme]['bg'],
              fg=THEMES[current_theme]['label_fg']).pack(pady=(0, 10))
 
-    list_frame = ttk.Frame(container, style=f"{current_theme}.TFrame")
-    list_frame.pack(fill=tk.BOTH, expand=True)
+    lf = ttk.Frame(container, style=f"{current_theme}.TFrame")
+    lf.pack(fill=tk.BOTH, expand=True)
 
-    scrollbar = ttk.Scrollbar(list_frame)
-    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    sb = ttk.Scrollbar(lf)
+    sb.pack(side=tk.RIGHT, fill=tk.Y)
 
-    history_list = tk.Listbox(
-        list_frame, yscrollcommand=scrollbar.set,
-        font=('Segoe UI', 10),
-        bg=THEMES[current_theme]['text_bg'],
-        fg=THEMES[current_theme]['text'],
-        selectbackground=THEMES[current_theme]['accent'],
-        selectforeground='white',
-        borderwidth=0, highlightthickness=0
-    )
-    history_list.pack(fill=tk.BOTH, expand=True)
-    scrollbar.config(command=history_list.yview)
+    hl = tk.Listbox(lf, yscrollcommand=sb.set, font=('Segoe UI', 10),
+                    bg=THEMES[current_theme]['text_bg'],
+                    fg=THEMES[current_theme]['text'],
+                    selectbackground=THEMES[current_theme]['accent'],
+                    selectforeground='white', borderwidth=0, highlightthickness=0)
+    hl.pack(fill=tk.BOTH, expand=True)
+    sb.config(command=hl.yview)
 
     if not history:
-        history_list.insert(tk.END, "  (No history yet)")
+        hl.insert(tk.END, "  (No history yet)")
     else:
-        for entry in history:
-            preview = f"[{entry['timestamp']}]  {entry['type']}:  {entry['input'][:60]}..."
-            history_list.insert(tk.END, preview)
+        for e in history:
+            hl.insert(tk.END, f"[{e['timestamp']}]  {e['type']}:  {e['input'][:60]}...")
 
-    def view_selected():
-        selection = history_list.curselection()
-        if not selection:
-            messagebox.showinfo("Select Entry", "Please select a history entry first.")
+    def view_sel():
+        sel = hl.curselection()
+        if not sel or sel[0] >= len(history):
             return
-        idx = selection[0]
-        if idx >= len(history):
-            return
-        entry = history[idx]
-
-        view_window = tk.Toplevel(history_window)
-        view_window.title("History Entry")
-        view_window.geometry("700x520")
-        view_window.config(bg=THEMES[current_theme]['bg'])
-
-        vc = ttk.Frame(view_window, style=f"{current_theme}.TFrame")
+        e = history[sel[0]]
+        vw = tk.Toplevel(hw)
+        vw.title("History Entry")
+        vw.geometry("700x520")
+        vw.config(bg=THEMES[current_theme]['bg'])
+        vc = ttk.Frame(vw, style=f"{current_theme}.TFrame")
         vc.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        for txt in [f"Timestamp: {entry['timestamp']}", f"Encoding: {entry['type']}"]:
+        for txt in [f"Timestamp: {e['timestamp']}", f"Encoding: {e['type']}"]:
             tk.Label(vc, text=txt, font=('Segoe UI', 9),
                      bg=THEMES[current_theme]['bg'],
                      fg=THEMES[current_theme]['label_fg']).pack(anchor='w')
-
         tk.Label(vc, text="Input:", font=('Segoe UI', 10, 'bold'),
                  bg=THEMES[current_theme]['bg'],
                  fg=THEMES[current_theme]['label_fg']).pack(anchor='w', pady=(8, 0))
-
-        input_box = scrolledtext.ScrolledText(
-            vc, height=7, font=("Consolas", 10),
-            bg=THEMES[current_theme]['text_bg'],
-            fg=THEMES[current_theme]['text'], wrap=tk.WORD)
-        input_box.insert('1.0', entry['input'])
-        input_box.config(state='disabled')
-        input_box.pack(fill=tk.X, pady=(0, 8))
-
+        ib = scrolledtext.ScrolledText(vc, height=7, font=("Consolas", 10),
+                                       bg=THEMES[current_theme]['text_bg'],
+                                       fg=THEMES[current_theme]['text'], wrap=tk.WORD)
+        ib.insert('1.0', e['input'])
+        ib.config(state='disabled')
+        ib.pack(fill=tk.X, pady=(0, 8))
         tk.Label(vc, text="Output:", font=('Segoe UI', 10, 'bold'),
                  bg=THEMES[current_theme]['bg'],
                  fg=THEMES[current_theme]['label_fg']).pack(anchor='w')
-
-        output_box = scrolledtext.ScrolledText(
-            vc, height=10, font=("Consolas", 10),
-            bg=THEMES[current_theme]['text_bg'],
-            fg=THEMES[current_theme]['text'], wrap=tk.WORD)
-        output_box.insert('1.0', entry['result'])
-        output_box.config(state='disabled')
-        output_box.pack(fill=tk.BOTH, expand=True)
-
-        btn_frame = ttk.Frame(vc, style=f"{current_theme}.TFrame")
-        btn_frame.pack(fill=tk.X, pady=(10, 0))
-
-        def load_entry():
-            global _last_layers
-            text_input.delete('1.0', tk.END)
-            text_input.insert('1.0', entry['input'])
-            _last_layers = [('History', entry['result'])]
-            _refresh_result_display()
-            view_window.destroy()
-            history_window.destroy()
-            text_input.focus_set()
-            update_status(f"Loaded entry from {entry['timestamp']}", "success")
-
-        ttk.Button(btn_frame, text="Load This Entry", command=load_entry,
+        ob = scrolledtext.ScrolledText(vc, height=10, font=("Consolas", 10),
+                                       bg=THEMES[current_theme]['text_bg'],
+                                       fg=THEMES[current_theme]['text'], wrap=tk.WORD)
+        ob.insert('1.0', e['result'])
+        ob.config(state='disabled')
+        ob.pack(fill=tk.BOTH, expand=True)
+        bf = ttk.Frame(vc, style=f"{current_theme}.TFrame")
+        bf.pack(fill=tk.X, pady=(10, 0))
+        def load():
+            dec_input.delete('1.0', tk.END)
+            dec_input.insert('1.0', e['input'])
+            vw.destroy()
+            hw.destroy()
+            main_notebook.select(0)
+            update_status(f"Loaded from {e['timestamp']}", "success")
+        ttk.Button(bf, text="Load to Decoder", command=load,
                    style=f"{current_theme}.TButton").pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Close", command=view_window.destroy,
+        ttk.Button(bf, text="Close", command=vw.destroy,
                    style=f"{current_theme}.TButton").pack(side=tk.RIGHT, padx=5)
 
-    def clear_all_history():
+    def clear_hist():
         global history
-        if messagebox.askyesno("Clear History", "Clear all history? This cannot be undone."):
+        if messagebox.askyesno("Clear History", "Clear all history? Cannot be undone."):
             history = []
             save_history()
-            history_list.delete(0, tk.END)
-            history_list.insert(tk.END, "  (History cleared)")
+            hl.delete(0, tk.END)
+            hl.insert(tk.END, "  (History cleared)")
             update_status("History cleared.", "info")
 
-    btn_frame = ttk.Frame(container, style=f"{current_theme}.TFrame")
-    btn_frame.pack(fill=tk.X, pady=(10, 0))
-
-    ttk.Button(btn_frame, text="View Selected", command=view_selected,
+    bf = ttk.Frame(container, style=f"{current_theme}.TFrame")
+    bf.pack(fill=tk.X, pady=(10, 0))
+    ttk.Button(bf, text="View Selected", command=view_sel,
                style=f"{current_theme}.TButton").pack(side=tk.LEFT, padx=5)
-    ttk.Button(btn_frame, text="Clear History", command=clear_all_history,
+    ttk.Button(bf, text="Clear History", command=clear_hist,
                style=f"{current_theme}.Clear.TButton").pack(side=tk.LEFT, padx=5)
-    ttk.Button(btn_frame, text="Close", command=history_window.destroy,
+    ttk.Button(bf, text="Close", command=hw.destroy,
                style=f"{current_theme}.TButton").pack(side=tk.RIGHT, padx=5)
-
-    history_list.bind('<Double-1>', lambda e: view_selected())
+    hl.bind('<Double-1>', lambda ev: view_sel())
 
 
 def show_about():
-    about_text = (
-        "PRO AUTO DECODER GUI\n"
-        "v3.0.0 — Manual Mode, Pipeline & Per-Layer Copy\n\n"
-        "Modes:\n"
-        "  Auto     — smart multi-layer auto-detection\n"
-        "  Manual   — force a specific decoder\n"
-        "  Pipeline — chain decoders in sequence\n\n"
-        "Supported encodings:\n"
-        "  Base64, Base64-URL, Base32, Base58, Base85\n"
-        "  Hex, Binary, Octal, ASCII Decimal\n"
-        "  URL, HTML entities\n"
-        "  ROT13, ROT47, Caesar, Morse\n\n"
-        "Author: Bhavya Sehgal"
-    )
-    messagebox.showinfo("About", about_text)
+    messagebox.showinfo("About", (
+        "PRO AUTO DECODER / ENCODER\n"
+        "v4.0.0\n\n"
+        "Two-tab interface:\n"
+        "  DECODER — Auto, Manual, Pipeline modes\n"
+        "  ENCODER — 21 encoding formats + Encode All\n\n"
+        "Decoder supports:\n"
+        "  Base64/32/58/85/URL, Hex, Binary, Octal,\n"
+        "  ASCII Decimal, URL, HTML, ROT13/47, Caesar, Morse\n\n"
+        "Encoder adds:\n"
+        "  MD5, SHA-1, SHA-256, SHA-512 hashes\n\n"
+        "Author: Kookiieeyy"
+    ))
 
 
 # ===========================================================
@@ -1078,18 +1458,22 @@ def show_about():
 # ===========================================================
 
 def create_gui():
-    global root, text_input, result_display, status_var, status_bar
-    global main_frame, input_frame, result_frame, button_frame, sidebar_frame
-    global decode_btn, clear_btn, copy_btn, theme_buttons, menubar, sidebar_labels
-    global manual_decoder_var, layer_buttons_frame
-    global pipeline_step_vars, pipeline_steps_inner, pipeline_canvas
+    global root, status_var, status_bar, sidebar_frame, sidebar_labels
+    global theme_buttons, menubar, main_notebook
+    global dec_input, dec_result_display, dec_layer_btn_frame
+    global dec_manual_var, dec_pipeline_vars, dec_pipe_canvas, dec_pipe_inner
+    global enc_input, enc_result_display, enc_format_var, enc_param_var
+    global enc_param_frame, enc_param_label
+    global enc_pipeline_vars, enc_pipe_canvas, enc_pipe_inner
+    global enc_layer_btn_frame, enc_mode_nb
 
-    pipeline_step_vars = []
+    dec_pipeline_vars = []
+    enc_pipeline_vars = []
 
     root = tk.Tk()
-    root.title("PRO AUTO DECODER  v3")
-    root.geometry("1060x760")
-    root.minsize(900, 640)
+    root.title("PRO AUTO DECODER / ENCODER  v4")
+    root.geometry("1080x780")
+    root.minsize(900, 660)
     root.config(bg=THEMES[current_theme]['bg'])
 
     try:
@@ -1097,92 +1481,78 @@ def create_gui():
     except:
         pass
 
-    # ---- Styles ----
+    # ── Styles ────────────────────────────────────────────────────────────────
     style = ttk.Style()
     style.configure('.', font=('Segoe UI', 10))
 
     for theme_name, theme in THEMES.items():
         style.configure(f"{theme_name}.TFrame", background=theme['bg'])
-
         style.configure(
             f"{theme_name}.TButton",
             padding=8, relief="raised", borderwidth=2,
             background=theme['button_bg'], foreground='#ffffff',
-            font=('Segoe UI', 10, 'bold'), width=15
+            font=('Segoe UI', 10, 'bold'), width=14
         )
-        style.map(
-            f"{theme_name}.TButton",
-            background=[('active', theme.get('button_hover', theme['button_bg'])),
-                        ('!disabled', theme['button_bg'])],
-            foreground=[('active', '#ffffff'), ('!disabled', '#ffffff')],
-            relief=[('pressed', 'sunken'), ('!pressed', 'raised')]
-        )
-
+        style.map(f"{theme_name}.TButton",
+                  background=[('active', theme.get('button_hover', theme['button_bg'])),
+                               ('!disabled', theme['button_bg'])],
+                  foreground=[('active', '#ffffff'), ('!disabled', '#ffffff')],
+                  relief=[('pressed', 'sunken'), ('!pressed', 'raised')])
         style.configure(
             f"{theme_name}.Clear.TButton",
             padding=8, relief="raised", borderwidth=2,
             background=theme['clear_button_bg'], foreground='#ffffff',
-            font=('Segoe UI', 10, 'bold'), width=15
+            font=('Segoe UI', 10, 'bold'), width=14
         )
-        style.map(
-            f"{theme_name}.Clear.TButton",
-            background=[('active', theme.get('clear_hover', theme['clear_button_bg'])),
-                        ('!disabled', theme['clear_button_bg'])],
-            foreground=[('active', '#ffffff'), ('!disabled', '#ffffff')],
-            relief=[('pressed', 'sunken'), ('!pressed', 'raised')]
-        )
-
+        style.map(f"{theme_name}.Clear.TButton",
+                  background=[('active', theme.get('clear_hover', theme['clear_button_bg'])),
+                               ('!disabled', theme['clear_button_bg'])],
+                  foreground=[('active', '#ffffff'), ('!disabled', '#ffffff')],
+                  relief=[('pressed', 'sunken'), ('!pressed', 'raised')])
         style.configure(
             f"{theme_name}.Active.TButton",
             padding=6, relief="sunken",
             background=theme['accent'], foreground='#ffffff',
             font=('Segoe UI', 9, 'bold')
         )
-        style.map(
-            f"{theme_name}.Active.TButton",
-            background=[('active', theme['accent']), ('!disabled', theme['accent'])],
-            foreground=[('active', '#ffffff'), ('!disabled', '#ffffff')]
-        )
-
+        style.map(f"{theme_name}.Active.TButton",
+                  background=[('active', theme['accent']), ('!disabled', theme['accent'])],
+                  foreground=[('active', '#ffffff'), ('!disabled', '#ffffff')])
         style.configure(
             f"{theme_name}.TLabelframe",
-            background=theme['bg'], foreground=theme['text']
-        )
+            background=theme['bg'], foreground=theme['text'])
         style.configure(
             f"{theme_name}.TLabelframe.Label",
             background=theme['bg'], foreground=theme['accent'],
-            font=('Segoe UI', 9, 'bold')
-        )
-
+            font=('Segoe UI', 9, 'bold'))
         style.configure(
             f"{theme_name}.TNotebook",
-            background=theme['bg'], tabmargins=[2, 5, 2, 0]
-        )
+            background=theme['bg'], tabmargins=[2, 5, 2, 0])
         style.configure(
             f"{theme_name}.TNotebook.Tab",
             background=theme['bg'], foreground=theme['text'],
-            padding=[12, 4], font=('Segoe UI', 9, 'bold')
-        )
+            padding=[16, 5], font=('Segoe UI', 10, 'bold'))
         style.map(
             f"{theme_name}.TNotebook.Tab",
             background=[('selected', theme['accent'])],
-            foreground=[('selected', '#ffffff')]
-        )
+            foreground=[('selected', '#ffffff')])
 
-    # ---- Menu Bar ----
+    # ── Menu Bar ──────────────────────────────────────────────────────────────
     menubar = tk.Menu(root, bg=THEMES[current_theme]['bg'], fg=THEMES[current_theme]['text'])
 
     file_menu = tk.Menu(menubar, tearoff=0,
                         bg=THEMES[current_theme]['bg'], fg=THEMES[current_theme]['text'])
-    file_menu.add_command(label="Clear All", command=clear_text, accelerator="Ctrl+L")
+    file_menu.add_command(label="Clear Decoder", command=clear_decoder, accelerator="Ctrl+L")
+    file_menu.add_command(label="Clear Encoder", command=clear_encoder)
     file_menu.add_separator()
     file_menu.add_command(label="Exit", command=root.quit)
     menubar.add_cascade(label="File", menu=file_menu)
 
     edit_menu = tk.Menu(menubar, tearoff=0,
                         bg=THEMES[current_theme]['bg'], fg=THEMES[current_theme]['text'])
-    edit_menu.add_command(label="Copy All Output", command=copy_to_clipboard,
-                          accelerator="Ctrl+Shift+C")
+    edit_menu.add_command(label="Copy Decoder Output",
+                          command=copy_decoder_all, accelerator="Ctrl+Shift+C")
+    edit_menu.add_command(label="Copy Encoder Output", command=copy_encoder_result)
     edit_menu.add_separator()
     edit_menu.add_command(label="History", command=show_history, accelerator="Ctrl+H")
     menubar.add_cascade(label="Edit", menu=edit_menu)
@@ -1200,274 +1570,413 @@ def create_gui():
 
     root.config(menu=menubar)
 
-    # ---- Main container ----
-    main_container = ttk.Frame(root)
-    main_container.pack(fill=tk.BOTH, expand=True)
+    # ── Layout: sidebar + main ────────────────────────────────────────────────
+    outer = ttk.Frame(root)
+    outer.pack(fill=tk.BOTH, expand=True)
 
-    # ---- Sidebar ----
-    sidebar_frame = ttk.Frame(main_container, width=165, style=f"{current_theme}.TFrame")
+    # Sidebar
+    sidebar_frame = ttk.Frame(outer, width=162, style=f"{current_theme}.TFrame")
     sidebar_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
     sidebar_frame.pack_propagate(False)
 
     sidebar_labels = []
 
-    def make_sidebar_label(parent, text, bold=False):
-        font = ('Segoe UI', 10, 'bold') if bold else ('Segoe UI', 8)
-        lbl = tk.Label(parent, text=text, font=font,
-                       bg=THEMES[current_theme]['bg'],
-                       fg=THEMES[current_theme]['label_fg'])
+    def slbl(text, bold=False):
+        lbl = tk.Label(sidebar_frame, text=text,
+                       font=('Segoe UI', 10, 'bold') if bold else ('Segoe UI', 8),
+                       bg=THEMES[current_theme]['bg'], fg=THEMES[current_theme]['label_fg'])
         lbl.pack(pady=(6, 2) if bold else (0, 0), anchor='w', padx=5)
         sidebar_labels.append(lbl)
-        return lbl
 
-    make_sidebar_label(sidebar_frame, "Themes", bold=True)
-
+    slbl("Themes", bold=True)
     theme_buttons = {}
-    for theme in THEMES:
-        btn = ttk.Button(
-            sidebar_frame, text=theme,
-            command=lambda t=theme: apply_theme(t),
-            style=f"{current_theme}.TButton"
-        )
+    for t in THEMES:
+        btn = ttk.Button(sidebar_frame, text=t, command=lambda x=t: apply_theme(x),
+                         style=f"{current_theme}.TButton")
         btn.pack(fill=tk.X, pady=2, padx=5)
-        theme_buttons[theme] = btn
+        theme_buttons[t] = btn
 
     ttk.Separator(sidebar_frame, orient='horizontal').pack(fill=tk.X, pady=8)
-    make_sidebar_label(sidebar_frame, "Shortcuts", bold=True)
-    for s in ["Enter: Auto Decode", "Ctrl+M: Manual", "Ctrl+P: Pipeline",
-              "Esc / Ctrl+L: Clear", "Ctrl+Shift+C: Copy", "Ctrl+H: History"]:
-        make_sidebar_label(sidebar_frame, s)
+    slbl("Decoder shortcuts", bold=True)
+    for s in ["Enter: Auto Decode", "Ctrl+M: Manual tab",
+              "Ctrl+P: Pipeline tab", "Ctrl+L: Clear", "Ctrl+H: History"]:
+        slbl(s)
 
     ttk.Separator(sidebar_frame, orient='horizontal').pack(fill=tk.X, pady=8)
-    make_sidebar_label(sidebar_frame, "Encodings", bold=True)
-    for enc in ["Base64 / URL / 32 / 58 / 85", "Hex, Binary, Octal",
-                "ASCII Decimal", "URL, HTML", "ROT13, ROT47", "Morse, Caesar"]:
-        make_sidebar_label(sidebar_frame, enc)
+    slbl("Encoder shortcuts", bold=True)
+    for s in ["Ctrl+E: Encode", "Ctrl+A: Encode All", "Ctrl+Shift+E: Clear"]:
+        slbl(s)
 
-    history_btn = ttk.Button(
-        sidebar_frame, text="History (Ctrl+H)",
-        command=show_history, style=f"{current_theme}.TButton"
-    )
+    ttk.Separator(sidebar_frame, orient='horizontal').pack(fill=tk.X, pady=8)
+    slbl("Formats", bold=True)
+    for s in ["Base64/32/58/85/URL", "Hex · Binary · Octal",
+              "ASCII · URL · HTML", "ROT13/47 · Caesar", "Morse · MD5 · SHA"]:
+        slbl(s)
+
+    history_btn = ttk.Button(sidebar_frame, text="History (Ctrl+H)",
+                              command=show_history, style=f"{current_theme}.TButton")
     history_btn.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=(0, 8))
 
-    # ---- Main content area ----
-    main_frame = ttk.Frame(main_container, padding="10", style=f"{current_theme}.TFrame")
-    main_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+    # ── Main notebook: DECODER | ENCODER ─────────────────────────────────────
+    main_notebook = ttk.Notebook(outer, style=f"{current_theme}.TNotebook")
+    main_notebook.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-    # ---- Input ----
-    input_frame = ttk.LabelFrame(
-        main_frame, text=" Input Text ",
-        padding=10, style=f"{current_theme}.TLabelframe"
-    )
-    input_frame.pack(fill=tk.BOTH, expand=False, pady=(0, 5))
+    # ═══════════════════════════════════════════════════════════════
+    # TAB 1: DECODER
+    # ═══════════════════════════════════════════════════════════════
+    decoder_tab = ttk.Frame(main_notebook, style=f"{current_theme}.TFrame", padding=8)
+    main_notebook.add(decoder_tab, text="  \U0001f513  DECODER  ")
 
-    text_input = scrolledtext.ScrolledText(
-        input_frame, height=6, font=("Consolas", 11),
+    # Decoder input
+    dec_input_frame = ttk.LabelFrame(
+        decoder_tab, text=" Input (encoded text) ",
+        padding=8, style=f"{current_theme}.TLabelframe")
+    dec_input_frame.pack(fill=tk.BOTH, expand=False, pady=(0, 5))
+
+    dec_input = scrolledtext.ScrolledText(
+        dec_input_frame, height=5, font=("Consolas", 11),
         bg=THEMES[current_theme]['text_bg'],
         fg=THEMES[current_theme]['text'],
         insertbackground=THEMES[current_theme]['text'],
         selectbackground=THEMES[current_theme]['accent'],
-        padx=10, pady=8, wrap=tk.WORD
-    )
-    text_input.pack(fill=tk.BOTH, expand=True)
+        padx=8, pady=6, wrap=tk.WORD)
+    dec_input.pack(fill=tk.BOTH, expand=True)
 
-    # ---- Mode Notebook ----
-    notebook = ttk.Notebook(main_frame, style=f"{current_theme}.TNotebook")
-    notebook.pack(fill=tk.X, pady=(0, 5))
+    # Decoder mode sub-notebook
+    dec_mode_nb = ttk.Notebook(decoder_tab, style=f"{current_theme}.TNotebook")
+    dec_mode_nb.pack(fill=tk.X, pady=(0, 5))
 
-    # ── TAB 1: AUTO ──────────────────────────────────────────────────────────
-    tab_auto = ttk.Frame(notebook, style=f"{current_theme}.TFrame", padding=6)
-    notebook.add(tab_auto, text="  Auto  ")
+    # ── Auto tab ─────────────────────────────────────────────────────────────
+    tab_auto = ttk.Frame(dec_mode_nb, style=f"{current_theme}.TFrame", padding=5)
+    dec_mode_nb.add(tab_auto, text="  Auto  ")
 
-    button_frame = ttk.Frame(tab_auto, style=f"{current_theme}.TFrame")
-    button_frame.pack(fill=tk.X)
+    auto_row = ttk.Frame(tab_auto, style=f"{current_theme}.TFrame")
+    auto_row.pack(fill=tk.X)
 
-    decode_btn = ttk.Button(
-        button_frame, text="\u25b6  DECODE (Enter)",
-        command=decode_input, style=f"{current_theme}.TButton"
-    )
-    decode_btn.pack(side=tk.LEFT, padx=4, ipadx=10, ipady=2)
+    ttk.Button(auto_row, text="\u25b6  DECODE (Enter)",
+               command=run_auto_decode, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=4, ipadx=8, ipady=2)
+    ttk.Button(auto_row, text="\u2715  Clear",
+               command=clear_decoder, style=f"{current_theme}.Clear.TButton"
+               ).pack(side=tk.LEFT, padx=4, ipadx=8, ipady=2)
+    ttk.Button(auto_row, text="\u2398  Copy All",
+               command=copy_decoder_all, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=4, ipadx=8, ipady=2)
 
-    clear_btn = ttk.Button(
-        button_frame, text="\u2715  CLEAR (Esc)",
-        command=clear_text, style=f"{current_theme}.Clear.TButton"
-    )
-    clear_btn.pack(side=tk.LEFT, padx=4, ipadx=10, ipady=2)
+    auto_hint = tk.Label(tab_auto,
+                         text="Smart multi-layer auto-detection across all supported encodings.",
+                         font=('Segoe UI', 8),
+                         bg=THEMES[current_theme]['bg'],
+                         fg=THEMES[current_theme]['label_fg'])
+    auto_hint.pack(anchor='w', pady=(4, 0))
+    sidebar_labels.append(auto_hint)
 
-    copy_btn = ttk.Button(
-        button_frame, text="\u2398  Copy All",
-        command=copy_to_clipboard, style=f"{current_theme}.TButton"
-    )
-    copy_btn.pack(side=tk.LEFT, padx=4, ipadx=10, ipady=2)
+    # ── Manual tab ────────────────────────────────────────────────────────────
+    tab_manual = ttk.Frame(dec_mode_nb, style=f"{current_theme}.TFrame", padding=5)
+    dec_mode_nb.add(tab_manual, text="  Manual  ")
 
-    tk.Label(
-        tab_auto,
-        text="Smart multi-layer auto-detection. Tries all decoders and chains layers automatically.",
-        font=('Segoe UI', 8),
-        bg=THEMES[current_theme]['bg'],
-        fg=THEMES[current_theme]['label_fg']
-    ).pack(anchor='w', pady=(4, 0))
-    sidebar_labels.append(tab_auto.winfo_children()[-1])
+    man_row = ttk.Frame(tab_manual, style=f"{current_theme}.TFrame")
+    man_row.pack(fill=tk.X, pady=2)
 
-    # ── TAB 2: MANUAL ────────────────────────────────────────────────────────
-    tab_manual = ttk.Frame(notebook, style=f"{current_theme}.TFrame", padding=6)
-    notebook.add(tab_manual, text="  Manual  ")
+    man_lbl = tk.Label(man_row, text="Decode as:",
+                       font=('Segoe UI', 10),
+                       bg=THEMES[current_theme]['bg'],
+                       fg=THEMES[current_theme]['label_fg'])
+    man_lbl.pack(side=tk.LEFT, padx=(0, 8))
+    sidebar_labels.append(man_lbl)
 
-    manual_row = ttk.Frame(tab_manual, style=f"{current_theme}.TFrame")
-    manual_row.pack(fill=tk.X, pady=4)
+    dec_manual_var = tk.StringVar(value="Base64")
+    ttk.Combobox(man_row, textvariable=dec_manual_var,
+                 values=list(MANUAL_DECODER_MAP.keys()),
+                 width=15, state='readonly',
+                 font=('Segoe UI', 10)).pack(side=tk.LEFT, padx=(0, 10))
 
-    manual_lbl = tk.Label(
-        manual_row, text="Decode as:",
-        font=('Segoe UI', 10),
-        bg=THEMES[current_theme]['bg'],
-        fg=THEMES[current_theme]['label_fg']
-    )
-    manual_lbl.pack(side=tk.LEFT, padx=(0, 8))
-    sidebar_labels.append(manual_lbl)
+    ttk.Button(man_row, text="\u25b6  Run",
+               command=run_manual_decode, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, ipadx=8, ipady=2)
+    ttk.Button(man_row, text="\u2715  Clear",
+               command=clear_decoder, style=f"{current_theme}.Clear.TButton"
+               ).pack(side=tk.LEFT, padx=6, ipadx=6, ipady=2)
 
-    manual_decoder_var = tk.StringVar(value="Base64")
-    manual_cb = ttk.Combobox(
-        manual_row, textvariable=manual_decoder_var,
-        values=list(MANUAL_DECODER_MAP.keys()),
-        width=16, state='readonly', font=('Segoe UI', 10)
-    )
-    manual_cb.pack(side=tk.LEFT, padx=(0, 10))
+    man_hint = tk.Label(tab_manual,
+                        text="Force a specific decoder — useful for CTF challenges.",
+                        font=('Segoe UI', 8),
+                        bg=THEMES[current_theme]['bg'],
+                        fg=THEMES[current_theme]['label_fg'])
+    man_hint.pack(anchor='w', pady=(4, 0))
+    sidebar_labels.append(man_hint)
 
-    ttk.Button(
-        manual_row, text="\u25b6  Run Manual Decode",
-        command=manual_decode, style=f"{current_theme}.TButton"
-    ).pack(side=tk.LEFT, ipadx=8, ipady=2)
+    # ── Pipeline tab ──────────────────────────────────────────────────────────
+    tab_pipe = ttk.Frame(dec_mode_nb, style=f"{current_theme}.TFrame", padding=5)
+    dec_mode_nb.add(tab_pipe, text="  Pipeline  ")
 
-    ttk.Button(
-        manual_row, text="\u2715  Clear",
-        command=clear_text, style=f"{current_theme}.Clear.TButton"
-    ).pack(side=tk.LEFT, padx=6, ipadx=6, ipady=2)
+    pipe_ctrl_row = ttk.Frame(tab_pipe, style=f"{current_theme}.TFrame")
+    pipe_ctrl_row.pack(fill=tk.X, pady=(0, 4))
 
-    manual_hint = tk.Label(
-        tab_manual,
-        text="Force a specific decoder — great for CTF challenges where you know the encoding type.",
-        font=('Segoe UI', 8),
-        bg=THEMES[current_theme]['bg'],
-        fg=THEMES[current_theme]['label_fg']
-    )
-    manual_hint.pack(anchor='w', pady=(2, 0))
-    sidebar_labels.append(manual_hint)
+    ttk.Button(pipe_ctrl_row, text="\u25b6  Run Pipeline",
+               command=run_pipeline_decode, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=(0, 5), ipadx=8, ipady=2)
+    ttk.Button(pipe_ctrl_row, text="+ Step",
+               command=add_dec_pipeline_step, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=3, ipadx=5, ipady=2)
+    ttk.Button(pipe_ctrl_row, text="\u2212 Remove",
+               command=remove_dec_pipeline_step, style=f"{current_theme}.Clear.TButton"
+               ).pack(side=tk.LEFT, padx=3, ipadx=5, ipady=2)
+    ttk.Button(pipe_ctrl_row, text="\u2715  Clear",
+               command=clear_decoder, style=f"{current_theme}.Clear.TButton"
+               ).pack(side=tk.LEFT, padx=5, ipadx=5, ipady=2)
 
-    # ── TAB 3: PIPELINE ──────────────────────────────────────────────────────
-    tab_pipeline = ttk.Frame(notebook, style=f"{current_theme}.TFrame", padding=6)
-    notebook.add(tab_pipeline, text="  Pipeline  ")
+    pipe_scroll_wrap = tk.Frame(tab_pipe, bg=THEMES[current_theme]['bg'])
+    pipe_scroll_wrap.pack(fill=tk.X, pady=2)
 
-    pipe_ctrl = ttk.Frame(tab_pipeline, style=f"{current_theme}.TFrame")
-    pipe_ctrl.pack(fill=tk.X, pady=(0, 4))
+    dec_pipe_canvas = tk.Canvas(pipe_scroll_wrap, height=42,
+                                bg=THEMES[current_theme]['bg'],
+                                highlightthickness=0)
+    pipe_hsc = ttk.Scrollbar(pipe_scroll_wrap, orient='horizontal',
+                              command=dec_pipe_canvas.xview)
+    dec_pipe_canvas.configure(xscrollcommand=pipe_hsc.set)
+    pipe_hsc.pack(side=tk.BOTTOM, fill=tk.X)
+    dec_pipe_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-    ttk.Button(
-        pipe_ctrl, text="\u25b6  Run Pipeline",
-        command=run_pipeline, style=f"{current_theme}.TButton"
-    ).pack(side=tk.LEFT, padx=(0, 6), ipadx=8, ipady=2)
+    dec_pipe_inner = tk.Frame(dec_pipe_canvas, bg=THEMES[current_theme]['bg'])
+    dec_pipe_canvas.create_window((0, 0), window=dec_pipe_inner, anchor='nw')
 
-    ttk.Button(
-        pipe_ctrl, text="+ Add Step",
-        command=add_pipeline_step, style=f"{current_theme}.TButton"
-    ).pack(side=tk.LEFT, padx=3, ipadx=6, ipady=2)
-
-    ttk.Button(
-        pipe_ctrl, text="\u2212 Remove",
-        command=remove_pipeline_step, style=f"{current_theme}.Clear.TButton"
-    ).pack(side=tk.LEFT, padx=3, ipadx=6, ipady=2)
-
-    ttk.Button(
-        pipe_ctrl, text="\u2715  Clear",
-        command=clear_text, style=f"{current_theme}.Clear.TButton"
-    ).pack(side=tk.LEFT, padx=6, ipadx=6, ipady=2)
-
-    # Scrollable pipeline steps
-    pipe_scroll_frame = tk.Frame(tab_pipeline, bg=THEMES[current_theme]['bg'])
-    pipe_scroll_frame.pack(fill=tk.X, pady=2)
-
-    pipeline_canvas = tk.Canvas(
-        pipe_scroll_frame, height=44,
-        bg=THEMES[current_theme]['bg'],
-        highlightthickness=0
-    )
-    pipe_hscroll = ttk.Scrollbar(
-        pipe_scroll_frame, orient='horizontal',
-        command=pipeline_canvas.xview
-    )
-    pipeline_canvas.configure(xscrollcommand=pipe_hscroll.set)
-    pipe_hscroll.pack(side=tk.BOTTOM, fill=tk.X)
-    pipeline_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    pipeline_steps_inner = tk.Frame(pipeline_canvas, bg=THEMES[current_theme]['bg'])
-    pipeline_canvas.create_window((0, 0), window=pipeline_steps_inner, anchor='nw')
-
-    # Seed with 3 default steps
     for i in range(3):
-        _build_pipeline_step(i)
+        _build_dec_pipeline_step(i)
 
-    pipeline_canvas.update_idletasks()
-    pipeline_canvas.configure(scrollregion=pipeline_canvas.bbox("all"))
+    dec_pipe_canvas.update_idletasks()
+    dec_pipe_canvas.configure(scrollregion=dec_pipe_canvas.bbox("all"))
 
-    pipe_hint = tk.Label(
-        tab_pipeline,
-        text=(
-            "Chain decoders in order, e.g.  Base64 \u2192 ROT13 \u2192 Hex.  "
-            "Use + / \u2212 to add or remove steps. Pipeline stops and shows partial results on failure."
-        ),
-        font=('Segoe UI', 8),
-        bg=THEMES[current_theme]['bg'],
-        fg=THEMES[current_theme]['label_fg']
-    )
+    pipe_hint = tk.Label(tab_pipe,
+                         text="Chain decoders: Base64 \u2192 ROT13 \u2192 Hex. Stops and shows partial results on failure.",
+                         font=('Segoe UI', 8),
+                         bg=THEMES[current_theme]['bg'],
+                         fg=THEMES[current_theme]['label_fg'])
     pipe_hint.pack(anchor='w', pady=(2, 0))
     sidebar_labels.append(pipe_hint)
 
-    # ---- Output section ----
-    result_frame = ttk.LabelFrame(
-        main_frame, text=" Decoded Output ",
-        padding=8, style=f"{current_theme}.TLabelframe"
-    )
-    result_frame.pack(fill=tk.BOTH, expand=True)
+    # Decoder output
+    dec_out_frame = ttk.LabelFrame(
+        decoder_tab, text=" Decoded Output ",
+        padding=8, style=f"{current_theme}.TLabelframe")
+    dec_out_frame.pack(fill=tk.BOTH, expand=True)
 
-    # Per-layer copy button bar (populated dynamically)
-    layer_buttons_frame = tk.Frame(result_frame, bg=THEMES[current_theme]['bg'])
-    layer_buttons_frame.pack(fill=tk.X, pady=(0, 4))
+    dec_layer_btn_frame = tk.Frame(dec_out_frame, bg=THEMES[current_theme]['bg'])
+    dec_layer_btn_frame.pack(fill=tk.X, pady=(0, 4))
 
-    result_display = scrolledtext.ScrolledText(
-        result_frame, height=13, font=("Consolas", 11),
+    dec_result_display = scrolledtext.ScrolledText(
+        dec_out_frame, height=12, font=("Consolas", 11),
         bg=THEMES[current_theme]['text_bg'],
         fg=THEMES[current_theme]['text'],
         state='disabled',
         insertbackground=THEMES[current_theme]['text'],
         selectbackground=THEMES[current_theme]['accent'],
-        padx=10, pady=8, wrap=tk.WORD
-    )
-    result_display.pack(fill=tk.BOTH, expand=True)
+        padx=8, pady=6, wrap=tk.WORD)
+    dec_result_display.pack(fill=tk.BOTH, expand=True)
 
-    # ---- Status bar ----
+    # ═══════════════════════════════════════════════════════════════
+    # TAB 2: ENCODER
+    # ═══════════════════════════════════════════════════════════════
+    encoder_tab = ttk.Frame(main_notebook, style=f"{current_theme}.TFrame", padding=8)
+    main_notebook.add(encoder_tab, text="  \U0001f510  ENCODER  ")
+
+    # Encoder input
+    enc_input_frame = ttk.LabelFrame(
+        encoder_tab, text=" Input (plain text to encode) ",
+        padding=8, style=f"{current_theme}.TLabelframe")
+    enc_input_frame.pack(fill=tk.BOTH, expand=False, pady=(0, 5))
+
+    enc_input = scrolledtext.ScrolledText(
+        enc_input_frame, height=5, font=("Consolas", 11),
+        bg=THEMES[current_theme]['text_bg'],
+        fg=THEMES[current_theme]['text'],
+        insertbackground=THEMES[current_theme]['text'],
+        selectbackground=THEMES[current_theme]['accent'],
+        padx=8, pady=6, wrap=tk.WORD)
+    enc_input.pack(fill=tk.BOTH, expand=True)
+
+    # ── Encoder mode sub-notebook: Single | Pipeline | Encode All ────────────
+    enc_mode_nb = ttk.Notebook(encoder_tab, style=f"{current_theme}.TNotebook")
+    enc_mode_nb.pack(fill=tk.X, pady=(0, 5))
+
+    # ── TAB: Single ───────────────────────────────────────────────────────────
+    tab_enc_single = ttk.Frame(enc_mode_nb, style=f"{current_theme}.TFrame", padding=6)
+    enc_mode_nb.add(tab_enc_single, text="  Single  ")
+
+    single_r1 = ttk.Frame(tab_enc_single, style=f"{current_theme}.TFrame")
+    single_r1.pack(fill=tk.X, pady=(0, 4))
+
+    s_fmt_lbl = tk.Label(single_r1, text="Format:",
+                         font=('Segoe UI', 10),
+                         bg=THEMES[current_theme]['bg'],
+                         fg=THEMES[current_theme]['label_fg'])
+    s_fmt_lbl.pack(side=tk.LEFT, padx=(0, 8))
+    sidebar_labels.append(s_fmt_lbl)
+
+    enc_format_var = tk.StringVar(value="Base64")
+    enc_format_cb = ttk.Combobox(
+        single_r1, textvariable=enc_format_var,
+        values=list(ENCODERS.keys()),
+        width=20, state='readonly', font=('Segoe UI', 10))
+    enc_format_cb.pack(side=tk.LEFT, padx=(0, 8))
+    enc_format_cb.bind("<<ComboboxSelected>>", on_encoder_select)
+
+    enc_param_frame = ttk.Frame(single_r1, style=f"{current_theme}.TFrame")
+    enc_param_label = tk.Label(enc_param_frame, text="Shift:",
+                               font=('Segoe UI', 10),
+                               bg=THEMES[current_theme]['bg'],
+                               fg=THEMES[current_theme]['label_fg'])
+    enc_param_label.pack(side=tk.LEFT, padx=(0, 4))
+    sidebar_labels.append(enc_param_label)
+    enc_param_var = tk.StringVar(value="3")
+    tk.Entry(enc_param_frame, textvariable=enc_param_var,
+             width=5, font=('Segoe UI', 10)).pack(side=tk.LEFT)
+
+    single_r2 = ttk.Frame(tab_enc_single, style=f"{current_theme}.TFrame")
+    single_r2.pack(fill=tk.X)
+
+    ttk.Button(single_r2, text="\u25b6  ENCODE (Ctrl+E)",
+               command=run_encode, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=4, ipadx=8, ipady=2)
+    ttk.Button(single_r2, text="\u2398  Copy",
+               command=copy_encoder_result, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=4, ipadx=8, ipady=2)
+    ttk.Button(single_r2, text="\u2715  Clear",
+               command=clear_encoder, style=f"{current_theme}.Clear.TButton"
+               ).pack(side=tk.LEFT, padx=4, ipadx=8, ipady=2)
+
+    s_hint = tk.Label(tab_enc_single,
+                      text="Pick one format and encode.",
+                      font=('Segoe UI', 8),
+                      bg=THEMES[current_theme]['bg'],
+                      fg=THEMES[current_theme]['label_fg'])
+    s_hint.pack(anchor='w', pady=(4, 0))
+    sidebar_labels.append(s_hint)
+
+    # ── TAB: Pipeline ─────────────────────────────────────────────────────────
+    tab_enc_pipe = ttk.Frame(enc_mode_nb, style=f"{current_theme}.TFrame", padding=6)
+    enc_mode_nb.add(tab_enc_pipe, text="  Pipeline  ")
+
+    ep_ctrl = ttk.Frame(tab_enc_pipe, style=f"{current_theme}.TFrame")
+    ep_ctrl.pack(fill=tk.X, pady=(0, 4))
+
+    ttk.Button(ep_ctrl, text="\u25b6  Run Pipeline",
+               command=run_pipeline_encode, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=(0, 5), ipadx=8, ipady=2)
+    ttk.Button(ep_ctrl, text="+ Step",
+               command=add_enc_pipeline_step, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=3, ipadx=5, ipady=2)
+    ttk.Button(ep_ctrl, text="\u2212 Remove",
+               command=remove_enc_pipeline_step, style=f"{current_theme}.Clear.TButton"
+               ).pack(side=tk.LEFT, padx=3, ipadx=5, ipady=2)
+    ttk.Button(ep_ctrl, text="\u2715  Clear",
+               command=clear_encoder, style=f"{current_theme}.Clear.TButton"
+               ).pack(side=tk.LEFT, padx=5, ipadx=5, ipady=2)
+
+    ep_scroll_wrap = tk.Frame(tab_enc_pipe, bg=THEMES[current_theme]['bg'])
+    ep_scroll_wrap.pack(fill=tk.X, pady=2)
+
+    enc_pipe_canvas = tk.Canvas(ep_scroll_wrap, height=52,
+                                bg=THEMES[current_theme]['bg'],
+                                highlightthickness=0)
+    ep_hsc = ttk.Scrollbar(ep_scroll_wrap, orient='horizontal',
+                            command=enc_pipe_canvas.xview)
+    enc_pipe_canvas.configure(xscrollcommand=ep_hsc.set)
+    ep_hsc.pack(side=tk.BOTTOM, fill=tk.X)
+    enc_pipe_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    enc_pipe_inner = tk.Frame(enc_pipe_canvas, bg=THEMES[current_theme]['bg'])
+    enc_pipe_canvas.create_window((0, 0), window=enc_pipe_inner, anchor='nw')
+
+    for i in range(3):
+        _build_enc_pipeline_step(i)
+
+    enc_pipe_canvas.update_idletasks()
+    enc_pipe_canvas.configure(scrollregion=enc_pipe_canvas.bbox("all"))
+
+    ep_hint = tk.Label(tab_enc_pipe,
+                       text="Chain encoders: ROT13 \u2192 Base64 \u2192 Hex. "
+                            "Each step gets a Copy button. Caesar shows n= field inline.",
+                       font=('Segoe UI', 8),
+                       bg=THEMES[current_theme]['bg'],
+                       fg=THEMES[current_theme]['label_fg'])
+    ep_hint.pack(anchor='w', pady=(2, 0))
+    sidebar_labels.append(ep_hint)
+
+    # ── TAB: Encode All ───────────────────────────────────────────────────────
+    tab_enc_all = ttk.Frame(enc_mode_nb, style=f"{current_theme}.TFrame", padding=6)
+    enc_mode_nb.add(tab_enc_all, text="  Encode All  ")
+
+    ea_r = ttk.Frame(tab_enc_all, style=f"{current_theme}.TFrame")
+    ea_r.pack(fill=tk.X, pady=(0, 4))
+
+    ttk.Button(ea_r, text="\u25b6\u25b6  Encode All (Ctrl+A)",
+               command=run_encode_all, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=4, ipadx=8, ipady=2)
+    ttk.Button(ea_r, text="\u2398  Copy Output",
+               command=copy_encoder_result, style=f"{current_theme}.TButton"
+               ).pack(side=tk.LEFT, padx=4, ipadx=8, ipady=2)
+    ttk.Button(ea_r, text="\u2715  Clear",
+               command=clear_encoder, style=f"{current_theme}.Clear.TButton"
+               ).pack(side=tk.LEFT, padx=4, ipadx=8, ipady=2)
+
+    ea_hint = tk.Label(tab_enc_all,
+                       text="Encode input using every available format at once. Useful for CTF recon.",
+                       font=('Segoe UI', 8),
+                       bg=THEMES[current_theme]['bg'],
+                       fg=THEMES[current_theme]['label_fg'])
+    ea_hint.pack(anchor='w', pady=(4, 0))
+    sidebar_labels.append(ea_hint)
+
+    # ── Shared encoder output (used by all three encoder tabs) ────────────────
+    enc_out_frame = ttk.LabelFrame(
+        encoder_tab, text=" Encoded Output ",
+        padding=8, style=f"{current_theme}.TLabelframe")
+    enc_out_frame.pack(fill=tk.BOTH, expand=True)
+
+    enc_layer_btn_frame = tk.Frame(enc_out_frame, bg=THEMES[current_theme]['bg'])
+    enc_layer_btn_frame.pack(fill=tk.X, pady=(0, 4))
+
+    enc_result_display = scrolledtext.ScrolledText(
+        enc_out_frame, height=13, font=("Consolas", 11),
+        bg=THEMES[current_theme]['text_bg'],
+        fg=THEMES[current_theme]['text'],
+        state='disabled',
+        insertbackground=THEMES[current_theme]['text'],
+        selectbackground=THEMES[current_theme]['accent'],
+        padx=8, pady=6, wrap=tk.WORD)
+    enc_result_display.pack(fill=tk.BOTH, expand=True)
+
+    # ── Status bar ────────────────────────────────────────────────────────────
     status_var = tk.StringVar(value="Ready")
     status_bar = tk.Label(
         root, textvariable=status_var,
         bd=1, relief=tk.SUNKEN, anchor=tk.W,
         bg=THEMES[current_theme]['accent'],
-        fg="white", font=("Segoe UI", 9), padx=8
-    )
+        fg="white", font=("Segoe UI", 9), padx=8)
     status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
-    # ---- Keyboard bindings ----
-    root.bind("<Return>", decode_input)
-    root.bind("<Escape>", clear_text)
-    root.bind("<Control-l>", lambda e: clear_text())
-    root.bind("<Control-L>", lambda e: clear_text())
-    root.bind("<Control-Shift-C>", lambda e: copy_to_clipboard())
+    # ── Key bindings ──────────────────────────────────────────────────────────
+    root.bind("<Return>", run_auto_decode)
+    root.bind("<Escape>", clear_decoder)
+    root.bind("<Control-l>", lambda e: clear_decoder())
+    root.bind("<Control-L>", lambda e: clear_decoder())
+    root.bind("<Control-Shift-C>", lambda e: copy_decoder_all())
     root.bind("<Control-h>", lambda e: show_history())
     root.bind("<Control-H>", lambda e: show_history())
-    root.bind("<Control-m>", lambda e: notebook.select(1))
-    root.bind("<Control-M>", lambda e: notebook.select(1))
-    root.bind("<Control-p>", lambda e: notebook.select(2))
-    root.bind("<Control-P>", lambda e: notebook.select(2))
+    root.bind("<Control-m>", lambda e: dec_mode_nb.select(1))
+    root.bind("<Control-M>", lambda e: dec_mode_nb.select(1))
+    root.bind("<Control-p>", lambda e: enc_mode_nb.select(1) if main_notebook.index(main_notebook.select()) == 1 else dec_mode_nb.select(2))
+    root.bind("<Control-P>", lambda e: enc_mode_nb.select(1) if main_notebook.index(main_notebook.select()) == 1 else dec_mode_nb.select(2))
+    root.bind("<Control-e>", lambda e: run_encode())
+    root.bind("<Control-E>", lambda e: run_encode())
+    root.bind("<Control-a>", lambda e: run_encode_all())
+    root.bind("<Control-A>", lambda e: run_encode_all())
+    root.bind("<Control-Shift-E>", lambda e: clear_encoder())
 
-    text_input.focus_set()
+    dec_input.focus_set()
     apply_theme(current_theme)
-    update_status("Ready — Auto / Manual / Pipeline modes available.", "info")
+    update_status("Ready — Decoder tab: paste encoded text | Encoder tab: paste plain text", "info")
     load_history()
 
 
