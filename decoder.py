@@ -1449,7 +1449,7 @@ def show_about():
         "  ASCII Decimal, URL, HTML, ROT13/47, Caesar, Morse\n\n"
         "Encoder adds:\n"
         "  MD5, SHA-1, SHA-256, SHA-512 hashes\n\n"
-        "Author: Kookiieeyy"
+        "Author: Bhavya Sehgal."
     ))
 
 
