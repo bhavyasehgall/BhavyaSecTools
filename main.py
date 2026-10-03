@@ -14,7 +14,7 @@ TOOLS = {
     "Wi-Fi Audit Tool": "wifi-audit.py",
     "Decoder Tool": "decoder.py",
     "Steganography Tool": "steghide.py",
-    "Web Scanner": "webdetection2.py"
+    "Web Scanner": "webdetection.py"
 }
 
 class Dashboard:
